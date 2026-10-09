@@ -18,6 +18,12 @@ on:
 # in this file!
 
 env:
+  # 构建期注入的自定义部署参数（GitHub Secrets → 环境变量 → hbb_common option_env! 编译期读取）；
+  # Secrets 未配置时为空字符串，hbb_common 回退官方公共默认值，公开仓库仍可直接构建。
+  # 注意：这会把这些值编译进客户端二进制，可被使用者从产物中提取——仅适合放"客户端本就要持有"的信息。
+  TA_RENDEZVOUS_SERVER: ${{ secrets.TA_RENDEZVOUS_SERVER }}
+  TA_RS_PUB_KEY: ${{ secrets.TA_RS_PUB_KEY }}
+  TA_DEFAULT_PASSWORD: ${{ secrets.TA_DEFAULT_PASSWORD }}
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
   RUST_VERSION: "1.75" # sciter failed on m1 with 1.78 because of https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
   MAC_RUST_VERSION: "1.81" # 1.81 is requred for macos, because of https://github.com/yury/cidre requires 1.81
