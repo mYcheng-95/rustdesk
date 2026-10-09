@@ -17,6 +17,13 @@ tadesk.exe 而丢失主程序组件，故只改显示 define、不动 app-name�
 """
 import glob
 import os
+import sys
+
+# GitHub 英文 Windows runner 的 Python 管道输出编码是 cp1252，
+# 含中文的 print 会触发 UnicodeEncodeError 导致步骤失败，这里强制 UTF-8
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 NAME = os.environ.get('APP_DISPLAY_NAME', 'TaDesk')
 MANUFACTURER = os.environ.get('MSI_MANUFACTURER', '中科天安')
