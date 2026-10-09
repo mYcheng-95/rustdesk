@@ -1,18 +1,23 @@
 # -*- coding: utf-8 -*-
 """MSI 品牌调整：在 res/msi/preprocess.py 之后、msbuild 之前运行（cwd 必须是 res/msi）
 
-覆盖四件事：
+覆盖三件事：
 1. 语言文件 Package/Language/*.wxl —— 开始菜单/桌面快捷方式名、卸载入口等显示串；
 2. preprocess.py 生成的 Product / Description / Manufacturer define ——
    控制面板"程序和功能"(ARP) 里的产品名、描述与发布者；
 3. UpgradeCode 换为按品牌名派生 —— 官方与本产品原本共用 uuid5("RustDesk.exe")，
    同码 MSI 会互相视作"相关产品"：已装官方版时装不进来（MajorUpgrade 拦截）、
-   升级时互相卸载。同一产品的 UpgradeCode 必须跨版本稳定，故按品牌名确定性派生；
-4. wxs 中 $(var.Product).exe 的注册表引用改回 $(var.ProductLower).exe ——
-   Product 改为品牌名后，这些引用会指向不存在的 TaDesk.exe（实际负载是
-   rustdesk.exe，即 ProductLower），导致文件关联与默认图标断链。
-   注意：Software\$(var.Product)\InstallState\$(var.Product) 等键保持品牌名
-   不动——客户端运行时按 APP_NAME（TaDesk）构造同一路径读取安装状态。
+   升级时互相卸载。同一产品的 UpgradeCode 必须跨版本稳定，故按品牌名确定性派生。
+
+关键不变量（勿动 $(var.Product).exe 引用）：MSI 把 dist 内的 rustdesk.exe
+以 Name="$(var.Product).exe" 安装为 TaDesk.exe；客户端（APP_NAME=TaDesk）
+期望且必要时会把自己改名成 {APP_NAME}.exe（src/platform/windows.rs 的
+install 路径按 app_name 拼 exe 名，不符则 move 改名）。因此快捷方式、服务、
+防火墙、文件关联对 $(var.Product).exe 的引用都必须保持品牌名——装出来的
+文件就叫 TaDesk.exe，三方一致；改成 ProductLower（rustdesk.exe）会导致
+客户端启动后把文件改名、MSI 建立的快捷方式随之失效（"快捷方式丢失"）。
+Software\$(var.Product)\InstallState 等注册表键同理保持品牌名——客户端
+运行时按 APP_NAME 构造同一路径读写安装状态。
 
 为什么不用 --app-name 直接传品牌名：preprocess.py 的 app_name 同时用于
 dist 目录内 {app_name}.exe 的组件匹配（rustdesk.exe），传 TaDesk 会因找不到
@@ -67,12 +72,10 @@ def main():
         o = s
         for old, new in defines:
             s = s.replace(old, new)
-        # 4) exe 引用断链修复：注册表里的可执行文件路径指向实际负载 rustdesk.exe
-        s = s.replace('$(var.Product).exe', '$(var.ProductLower).exe')
         if s != o:
             with open(f, 'w', encoding='utf-8', newline='') as fp:
                 fp.write(s)
-            print('define/引用 已替换: %s' % f)
+            print('define 已替换: %s' % f)
     print('MSI 品牌调整完成: %s / %s / UpgradeCode=%s' % (NAME, MANUFACTURER, new_upgrade))
 
 
