@@ -58,3 +58,10 @@ libsciter.dylib
 flutter/web/
 # libdrmtap is cloned at build time by build.py (not a submodule)
 /third_party/libdrmtap/
+
+# 中科天安品牌资源例外（*png 全局忽略导致新增图标/logo 无法入库，CI 构建依赖这些文件）
+!flutter/assets/icon.png
+!flutter/assets/logo.png
+!flutter/assets/logo_light.png
+!flutter/assets/logo_dark.png
+!res/branding/*.png
