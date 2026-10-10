@@ -41,6 +41,14 @@ REPLACES = [
     ('libs/hbb_common/src/config.rs',
      [('RwLock::new("RustDesk".to_owned())',
        'RwLock::new("%s".to_owned())' % NAME),
+      # DEFAULT_LOCAL_SETTINGS 预置：enable-udp-punch=Y（显式选中 UDP 打洞，
+      # 防止机器上残留的旧配置把它关掉；空值语义本就为开，此处为稳妥显式化）
+      ('pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
+       'pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = {\n'
+       '        let mut map = HashMap::new();\n'
+       '        map.insert("enable-udp-punch".to_string(), "Y".to_string());\n'
+       '        RwLock::new(map)\n'
+       '    };'),
       ('pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
        'pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = {\n'
        '        let mut map = HashMap::new();\n'
