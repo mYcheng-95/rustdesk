@@ -406,11 +406,10 @@ jobs:
           msbuild-architecture: ${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x86' }}
 
       - name: Build msi
-        if: ${{ false }} # TaDesk 发行仅自解压 exe，不构建 MSI
         # Builds the MSI for the matrix arch. res/msi (WiX v4 + native CustomActions) carries
         # both x64 and ARM64 platform configs; WcaUtil/DUtil ship arm64 libs. msbuild platform
         # is x64 / ARM64; the produced Package.msi is globbed since its bin/<platform>/ dir varies.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ false }} # TaDesk 发行仅自解压 exe，不构建 MSI
         run: |
           pushd ./res/msi
           python preprocess.py --arp -d ../../rustdesk --app-name TaDesk
@@ -423,7 +422,6 @@ jobs:
           sha256sum ../../SignOutput/tadesk-*.msi
 
       - name: Build pre-built MSI template
-        if: ${{ false }} # TaDesk 发行仅自解压 exe，不构建 MSI
         # Two things this works around: preprocess.py rewrites res/msi in place, so the
         # tree is reset around this second variant; and it locates the app as
         # <app-name>.exe inside the dist, so the dist copy is renamed to match.
@@ -441,7 +439,7 @@ jobs:
         # Building the arm64 template on the native arm64 runner makes the ARM
         # package available: the build agents are x64 and cannot run
         # preprocess.py against an ARM exe.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ false }} # TaDesk 发行仅自解压 exe，不构建 MSI
         run: |
           git checkout -- res/msi
           cp -r ./rustdesk ./rustdesk-msi-template
@@ -466,7 +464,6 @@ jobs:
 
       - name: Upload unsigned msi template
         if: ${{ false }} # TaDesk 发行仅自解压 exe，不构建 MSI
-        if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}
