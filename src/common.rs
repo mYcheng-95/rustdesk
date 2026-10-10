@@ -1134,6 +1134,14 @@ pub fn get_api_server(api: String, custom: String) -> String {
 }
 
 fn get_api_server_(api: String, custom: String) -> String {
+    // 构建期注入的 API 服务地址（TA_API_SERVER，公司分发预置）：
+    // 与 EXE_RENDEZVOUS_SERVER 同语义——压过用户配置与推导链，使已填过
+    // 历史地址的设备升级后自动指向公司 API，免除逐台手工配置。
+    // 未注入时保持空串，走原有解析链（官方开源行为）。
+    let exe_api = option_env!("TA_API_SERVER").unwrap_or("");
+    if !exe_api.is_empty() {
+        return exe_api.to_owned();
+    }
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::windows::get_license_from_exe_name() {
         if !lic.api.is_empty() {

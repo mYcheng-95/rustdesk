@@ -28,6 +28,9 @@ env:
   TA_RENDEZVOUS_SERVER: ${{ secrets.TA_RENDEZVOUS_SERVER }}
   TA_RS_PUB_KEY: ${{ secrets.TA_RS_PUB_KEY }}
   TA_DEFAULT_PASSWORD: ${{ secrets.TA_DEFAULT_PASSWORD }}
+  # API 服务地址预置（src/common.rs get_api_server_ 顶部 option_env! 拦截，
+  # 压过用户配置——设备升级后自动指向公司 API，免除逐台手工配置）
+  TA_API_SERVER: ${{ secrets.TA_API_SERVER }}
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
   RUST_VERSION: "1.75" # sciter failed on m1 with 1.78 because of https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
   MAC_RUST_VERSION: "1.81" # 1.81 is requred for macos, because of https://github.com/yury/cidre requires 1.81
@@ -372,8 +375,16 @@ jobs:
             echo "::error::未配置 TA_RENDEZVOUS_SERVER / TA_RS_PUB_KEY secrets，产物将回退官方服务器，已中止"
             exit 1
           fi
+          if [ -z "$TA_API_SERVER" ]; then
+            echo "::error::未配置 TA_API_SERVER secret，产物将需手工配置 API 地址，已中止"
+            exit 1
+          fi
           if ! grep -q "$TA_RENDEZVOUS_SERVER" ./rustdesk/librustdesk.dll; then
             echo "::error::librustdesk.dll 中未找到注入的服务器地址，注入链路异常"
+            exit 1
+          fi
+          if ! grep -q "$TA_API_SERVER" ./rustdesk/librustdesk.dll; then
+            echo "::error::librustdesk.dll 中未找到注入的 API 地址，注入链路异常"
             exit 1
           fi
           if ! grep -q "$TA_RS_PUB_KEY" ./rustdesk/librustdesk.dll; then
