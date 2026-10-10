@@ -2569,7 +2569,8 @@ class _AboutState extends State<_About> {
                     style: linkStyle,
                   ).marginSymmetric(vertical: 4.0)),
               Container(
-                decoration: const BoxDecoration(color: Color(0xFF2c8cff)),
+                // 品牌橙版权横幅（原为上游按钮蓝 0xFF2c8cff，44f143947 漏改的小写形式）
+                decoration: const BoxDecoration(color: _accentColor),
                 padding:
                     const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
                 child: SelectionArea(
