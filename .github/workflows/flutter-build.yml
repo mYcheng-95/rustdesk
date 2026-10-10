@@ -363,6 +363,25 @@ jobs:
           name: ${{ matrix.job.arch == 'aarch64' && 'topmostwindow-artifacts-ARM64' || 'topmostwindow-artifacts-x64' }}
           path: "./rustdesk"
 
+      - name: Verify embedded server preset
+        # 网络配置注入自检：GitHub Secrets 未配置或注入链路失效时立即失败，
+        # 避免产物静默回退官方服务器。librustdesk.dll 未压缩、可直接字符串匹配。
+        shell: bash
+        run: |
+          if [ -z "$TA_RENDEZVOUS_SERVER" ] || [ -z "$TA_RS_PUB_KEY" ]; then
+            echo "::error::未配置 TA_RENDEZVOUS_SERVER / TA_RS_PUB_KEY secrets，产物将回退官方服务器，已中止"
+            exit 1
+          fi
+          if ! grep -q "$TA_RENDEZVOUS_SERVER" ./rustdesk/librustdesk.dll; then
+            echo "::error::librustdesk.dll 中未找到注入的服务器地址，注入链路异常"
+            exit 1
+          fi
+          if ! grep -q "$TA_RS_PUB_KEY" ./rustdesk/librustdesk.dll; then
+            echo "::error::librustdesk.dll 中未找到注入的公钥，注入链路异常"
+            exit 1
+          fi
+          echo "网络配置注入验证通过"
+
       - name: Rename app exe to the brand name
         # Cargo 包名固定为 rustdesk，构建产物是 rustdesk.exe；而客户端运行时按
         # APP_NAME(TaDesk) 定位自身（安装目录、服务、快捷方式、自更新改名逻辑），
