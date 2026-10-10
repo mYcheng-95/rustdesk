@@ -34,10 +34,19 @@ NAME = os.environ.get('APP_DISPLAY_NAME', 'TaDesk')
 REPLACES = [
     # 全局应用名：主窗口标题、托盘提示、关于页、URI 前缀(tadesk://)、
     # 配置目录名全部由 hbb_common 的 APP_NAME 默认值派生（此文件在子模块中，
-    # 需将子模块指向自己的 fork 才能被 checkout 出来后修改）
+    # 需将子模块指向自己的 fork 才能被 checkout 出来后修改）；
+    # 同时播种 BUILTIN_SETTINGS 默认值：hide-powered-by-me=Y 隐藏主页底部
+    # "Power by RustDesk" 署名（官方为 Pro 自定义客户端预留的开关，
+    # 生成签名的自定义配置仍可覆盖该默认值）
     ('libs/hbb_common/src/config.rs',
      [('RwLock::new("RustDesk".to_owned())',
-       'RwLock::new("%s".to_owned())' % NAME)]),
+       'RwLock::new("%s".to_owned())' % NAME),
+      ('pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
+       'pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = {\n'
+       '        let mut map = HashMap::new();\n'
+       '        map.insert("hide-powered-by-me".to_string(), "Y".to_string());\n'
+       '        RwLock::new(map)\n'
+       '    };')]),
     # 连接页 tab 标题的硬编码品牌名
     ('flutter/lib/desktop/widgets/tabbar_widget.dart',
      [('"RustDesk",', '"%s",' % NAME)]),
