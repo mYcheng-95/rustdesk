@@ -9,6 +9,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
+import 'package:flutter_hbb/common/widgets/login.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/main.dart';
@@ -2522,6 +2523,20 @@ List<String>? urlLinkToCmdArgs(Uri uri) {
   return null;
 }
 
+/// 主控侧登录强制：服务端设备策略（心跳下发的 must-login 选项）开启时，
+/// 未登录禁止发起任何远程会话并弹登录框引导，登录后重新发起即可。
+/// 被控侧不检查——业务要求设备无条件可被连。命令行/URI 直连不经过此
+/// 拦截点，属已知边界。
+Future<bool> _ensureLoggedInForConnect() async {
+  final mustLogin = await bind.mainGetOption(key: 'must-login');
+  if (mustLogin != 'Y') return true;
+  final token = await bind.mainGetLocalOption(key: 'access_token');
+  if (token.isNotEmpty) return true;
+  showToast(translate('Login required by admin settings'));
+  await loginDialog();
+  return false;
+}
+
 connectMainDesktop(String id,
     {required bool isFileTransfer,
     required bool isViewCamera,
@@ -2532,6 +2547,8 @@ connectMainDesktop(String id,
     String? password,
     String? connToken,
     bool? isSharedPassword}) async {
+  // 所有桌面端连接路径（手动输 ID/地址簿/最近会话/子窗口转发）的汇聚点
+  if (!await _ensureLoggedInForConnect()) return;
   if (isFileTransfer) {
     await rustDeskWinManager.newFileTransfer(id,
         password: password,
