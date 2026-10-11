@@ -2152,6 +2152,11 @@ async fn secure_tcp_impl(conn: &mut Stream, key: &str, log_on_success: bool) -> 
     key_exchange(conn, key, log_on_success).await.map(|_| ())
 }
 
+/// 服务器主动下发 KeyExchange 的探测窗（毫秒）：新版服务器在连接建立后立即发送，
+/// 旧版服务器（≤1.1.16，客户端先发协议）永远不会先发。超过探测窗一律按旧服务器
+/// 处理，回退明文信令——与 1.5.0 之前客户端的行为一致，端到端会话加密不受影响。
+const KX_PROBE_TIMEOUT_MS: u64 = 1500;
+
 /// The server's key exchange on `conn`. `Ok(true)` once the stream is encrypted. `Ok(false)`
 /// when the server sent something else first, nothing parseable, or closed: `secure_tcp`
 /// tolerates that for servers from before the exchange, `secure_tcp_required` does not.
@@ -2160,8 +2165,13 @@ async fn key_exchange(conn: &mut Stream, key: &str, log_on_success: bool) -> Res
     let Some(rs_pk) = rs_pk else {
         bail!("Handshake failed: invalid public key from rendezvous server");
     };
-    match timeout(READ_TIMEOUT, conn.next()).await? {
-        Some(Ok(bytes)) => {
+    // 旧版 hbbs 不会先发 KeyExchange：死等 READ_TIMEOUT（18s）只会把登录态连接
+    // 拖成 "Failed to secure tcp: deadline has elapsed"。短探测窗内等不到即视为
+    // 旧服务器，落入下方 Ok(false) 的容忍分支，不再上抛超时错误。
+    match timeout(KX_PROBE_TIMEOUT_MS, conn.next()).await {
+        // 探测窗内收到消息：只有合法的 KeyExchange 才完成加密；
+        // 其余（含探测超时 Err）都视为旧服务器，落入 Ok(false) 容忍分支
+        Ok(Some(Ok(bytes))) => {
             if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                 match msg_in.union {
                     Some(rendezvous_message::Union::KeyExchange(ex)) => {
