@@ -286,23 +286,6 @@ class _PeerCardState extends State<_PeerCard>
               ? '${translate('Tags')}: ${peer.tags.join(', ')}'
               : '',
       child: Stack(children: [
-        // 「本机」徽标：标识当前设备，该卡片连接入口已禁用
-        if (_isSelf)
-          Positioned(
-            top: 4,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: MyTheme.accent,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                translate('Local device'),
-                style: const TextStyle(color: Colors.white, fontSize: 10),
-              ),
-            ),
-          ),
         Obx(
           () => deco == null
               ? makeChild(stateGlobal.isPortrait.isTrue, peer)
@@ -318,7 +301,24 @@ class _PeerCardState extends State<_PeerCard>
                 child: CustomPaint(
                   painter: TagPainter(radius: 3, colors: colors),
                 ),
-              ))
+              )),
+        // 「本机」徽标：须置于 Obx 主体之后——Stack 后画的在上层，放前面会被卡片背景盖住
+        if (_isSelf)
+          Positioned(
+            top: 4,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: MyTheme.accent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                translate('Local device'),
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+              ),
+            ),
+          )
       ]),
     );
   }
