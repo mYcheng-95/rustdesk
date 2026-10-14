@@ -15,3 +15,4 @@ jobs:
     with:
       upload-artifact: true
       upload-tag: ${{ github.ref_name }}
+      windows-only: true
