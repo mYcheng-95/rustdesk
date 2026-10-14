@@ -36,12 +36,19 @@ Future<void> _warmMyIdCache() async {
 /// 当前 peer 是否为本机（缓存未就绪时按非本机处理，预热后由卡片 setState 刷新）
 bool _isSelfPeer(String id) => _cachedMyId != null && _cachedMyId == id;
 
-/// 统一显示别名：地址簿别名（权威，管理员/ab 页改名全局生效）→ 本地别名
-///（右键重命名写入）→ 空串（调用方回退 username@hostname 或 ID）。
-/// 未登录或 ab 未加载时 find 返回 null，自然落到本地别名，离线可用。
+/// 统一显示别名：地址簿别名（权威）优先于数据源自带别名。
+/// 地址簿查找范围覆盖全部已加载 ab（当前视图可能是个人的，而别名改在
+/// 共享/全员 ab 或 Web 管理端）；当前 ab 优先，其余按加载顺序，
+/// 都无别名时回退数据源本地别名（右键重命名写入），离线可用。
 String _displayAlias(Peer peer) {
-  final abAlias = gFFI.abModel.find(peer.id)?.alias ?? '';
-  if (abAlias.isNotEmpty) return abAlias;
+  final currentAlias =
+      gFFI.abModel.find(peer.id)?.alias ?? '';
+  if (currentAlias.isNotEmpty) return currentAlias;
+  for (final ab in gFFI.abModel.addressbooks.values) {
+    final alias =
+        ab.peers.firstWhereOrNull((e) => e.id == peer.id)?.alias ?? '';
+    if (alias.isNotEmpty) return alias;
+  }
   return peer.alias;
 }
 
@@ -433,7 +440,10 @@ class _PeerCardState extends State<_PeerCard>
                         getOnline(8, peer.online),
                         Expanded(
                             child: Text(
-                          _displayAlias(peer).isEmpty ? formatID(peer.id) : _displayAlias(peer),
+                          // 无别名仅显 ID；有别名显示 名称(ID)
+                          _displayAlias(peer).isEmpty
+                              ? formatID(peer.id)
+                              : '${_displayAlias(peer)} (${formatID(peer.id)})',
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         )),
