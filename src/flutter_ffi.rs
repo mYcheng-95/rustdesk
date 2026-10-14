@@ -1554,18 +1554,19 @@ pub fn main_load_fav_peers() {
             .iter()
             .filter(|d| favs.contains(&d.id) && recent.iter().all(|r| r.0 != d.id))
             .map(|d| {
-                (
-                    d.id.clone(),
-                    SystemTime::UNIX_EPOCH,
-                    PeerConfig {
-                        info: PeerInfoSerde {
-                            username: d.username.clone(),
-                            hostname: d.hostname.clone(),
-                            platform: d.platform.clone(),
-                        },
-                        ..Default::default()
+                let mut pc = PeerConfig {
+                    info: PeerInfoSerde {
+                        username: d.username.clone(),
+                        hostname: d.hostname.clone(),
+                        platform: d.platform.clone(),
                     },
-                )
+                    ..Default::default()
+                };
+                // 发现数据无别名字段：从本地 per-peer 配置带出重命名，保持收藏页别名可见
+                if let Some(alias) = PeerConfig::load(&d.id).options.get("alias") {
+                    pc.options.insert("alias".to_owned(), alias.clone());
+                }
+                (d.id.clone(), SystemTime::UNIX_EPOCH, pc)
             })
             .collect();
         recent.append(&mut lan);

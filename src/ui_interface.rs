@@ -817,6 +817,15 @@ pub fn get_lan_peers() -> Vec<HashMap<&'static str, String>> {
                 ("username", peer.username.clone()),
                 ("hostname", peer.hostname.clone()),
                 ("platform", peer.platform.clone()),
+                // 发现协议无别名字段：带出本地 per-peer 配置里的重命名，供局域网页显示
+                (
+                    "alias",
+                    PeerConfig::load(&peer.id)
+                        .options
+                        .get("alias")
+                        .cloned()
+                        .unwrap_or_default(),
+                ),
             ])
         })
         .collect()

@@ -36,6 +36,15 @@ Future<void> _warmMyIdCache() async {
 /// 当前 peer 是否为本机（缓存未就绪时按非本机处理，预热后由卡片 setState 刷新）
 bool _isSelfPeer(String id) => _cachedMyId != null && _cachedMyId == id;
 
+/// 统一显示别名：地址簿别名（权威，管理员/ab 页改名全局生效）→ 本地别名
+///（右键重命名写入）→ 空串（调用方回退 username@hostname 或 ID）。
+/// 未登录或 ab 未加载时 find 返回 null，自然落到本地别名，离线可用。
+String _displayAlias(Peer peer) {
+  final abAlias = gFFI.abModel.find(peer.id)?.alias ?? '';
+  if (abAlias.isNotEmpty) return abAlias;
+  return peer.alias;
+}
+
 class _PeerCard extends StatefulWidget {
   final Peer peer;
   final PeerTabIndex tab;
@@ -160,9 +169,13 @@ class _PeerCardState extends State<_PeerCard>
   }
 
   makeChild(bool isPortrait, Peer peer) {
-    final name = hideUsernameOnCard == true
-        ? peer.hostname
-        : '${peer.username}${peer.username.isNotEmpty && peer.hostname.isNotEmpty ? '@' : ''}${peer.hostname}';
+    // 统一显示别名：地址簿/本地别名优先，无别名回退 username@hostname
+    final alias = _displayAlias(peer);
+    final name = alias.isNotEmpty
+        ? alias
+        : hideUsernameOnCard == true
+            ? peer.hostname
+            : '${peer.username}${peer.username.isNotEmpty && peer.hostname.isNotEmpty ? '@' : ''}${peer.hostname}';
     final greyStyle = TextStyle(
         fontSize: 11,
         color: Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.6));
@@ -214,7 +227,7 @@ class _PeerCardState extends State<_PeerCard>
                         getOnline(isPortrait ? 4 : 8, peer.online),
                         Expanded(
                             child: Text(
-                          peer.alias.isEmpty ? formatID(peer.id) : peer.alias,
+                          _displayAlias(peer).isEmpty ? formatID(peer.id) : _displayAlias(peer),
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         )),
@@ -327,9 +340,13 @@ class _PeerCardState extends State<_PeerCard>
       BuildContext context, Peer peer, Rx<BoxDecoration?> deco) {
     hideUsernameOnCard ??=
         bind.mainGetBuildinOption(key: kHideUsernameOnCard) == 'Y';
-    final name = hideUsernameOnCard == true
-        ? peer.hostname
-        : '${peer.username}${peer.username.isNotEmpty && peer.hostname.isNotEmpty ? '@' : ''}${peer.hostname}';
+    // 统一显示别名：地址簿/本地别名优先，无别名回退 username@hostname
+    final alias = _displayAlias(peer);
+    final name = alias.isNotEmpty
+        ? alias
+        : hideUsernameOnCard == true
+            ? peer.hostname
+            : '${peer.username}${peer.username.isNotEmpty && peer.hostname.isNotEmpty ? '@' : ''}${peer.hostname}';
     final child = Card(
       color: Colors.transparent,
       elevation: 0,
@@ -413,7 +430,7 @@ class _PeerCardState extends State<_PeerCard>
                         getOnline(8, peer.online),
                         Expanded(
                             child: Text(
-                          peer.alias.isEmpty ? formatID(peer.id) : peer.alias,
+                          _displayAlias(peer).isEmpty ? formatID(peer.id) : _displayAlias(peer),
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         )),
