@@ -25,6 +25,17 @@ final peerCardUiType = PeerUiType.grid.obs;
 
 bool? hideUsernameOnCard;
 
+/// 本机 ID 的库级缓存：卡片渲染时预热一次，供渲染层与菜单层共用。
+/// 本机设备在卡片上需标识「本机」并禁连——回环连接会形成无限嵌套画面且无法操作。
+String? _cachedMyId;
+
+Future<void> _warmMyIdCache() async {
+  _cachedMyId ??= await bind.mainGetMyId();
+}
+
+/// 当前 peer 是否为本机（缓存未就绪时按非本机处理，预热后由卡片 setState 刷新）
+bool _isSelfPeer(String id) => _cachedMyId != null && _cachedMyId == id;
+
 class _PeerCard extends StatefulWidget {
   final Peer peer;
   final PeerTabIndex tab;
@@ -50,6 +61,22 @@ class _PeerCardState extends State<_PeerCard>
   final double _cardRadius = 16;
   final double _tileRadius = 5;
   final double _borderWidth = 2;
+  bool _isSelf = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initIsSelf();
+  }
+
+  // 首帧后异步取本机 ID 并判定（mainGetMyId 是 FFI 异步调用），
+  // 命中时 setState 刷新出「本机」徽标与禁连态
+  Future<void> _initIsSelf() async {
+    await _warmMyIdCache();
+    if (mounted && _isSelfPeer(widget.peer.id)) {
+      setState(() => _isSelf = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +89,8 @@ class _PeerCardState extends State<_PeerCard>
     final PeerTabModel peerTabModel = Provider.of(context);
     final peer = super.widget.peer;
     return GestureDetector(
-        onDoubleTap: peerTabModel.multiSelectionMode
+        // 本机卡片禁用连接入口（双击/移动端点击），单击选中保留
+        onDoubleTap: peerTabModel.multiSelectionMode || _isSelf
             ? null
             : () => widget.connect(context, peer.id),
         onTap: () {
@@ -70,7 +98,7 @@ class _PeerCardState extends State<_PeerCard>
             peerTabModel.select(peer);
           } else {
             if (isMobile) {
-              widget.connect(context, peer.id);
+              if (!_isSelf) widget.connect(context, peer.id);
             } else {
               peerTabModel.select(peer);
             }
@@ -258,6 +286,23 @@ class _PeerCardState extends State<_PeerCard>
               ? '${translate('Tags')}: ${peer.tags.join(', ')}'
               : '',
       child: Stack(children: [
+        // 「本机」徽标：标识当前设备，该卡片连接入口已禁用
+        if (_isSelf)
+          Positioned(
+            top: 4,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: MyTheme.accent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                translate('Local device'),
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+              ),
+            ),
+          ),
         Obx(
           () => deco == null
               ? makeChild(stateGlobal.isPortrait.isTrue, peer)
@@ -570,6 +615,8 @@ abstract class BasePeerCard extends StatelessWidget {
       },
       padding: menuPadding,
       dismissOnClicked: true,
+      // 本机卡片的连接类菜单整体置灰（缓存由卡片渲染时的 initState 预热）
+      enabled: _isSelfPeer(peer.id) ? false.obs : null,
     );
   }
 

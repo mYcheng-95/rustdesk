@@ -781,6 +781,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Relay fallback delay in seconds", "回落到中继前的等待时间（秒）"),
         ("relay-fallback-delay-tip", "已经建立的中继连接会等待直连的 WebRTC 多久，超过这个时间就改用中继。调大可以让较慢的直连有更多机会胜出；调小则在无法直连的网络上更快回落到中继。留空表示使用默认值 2.5 秒。"),
         ("To start a voice call, enable \"Audio capture\" on the \"Share screen\" page.", "开始语音通话前请在\"共享屏幕\"页面启用\"音频录制\"。"),
-        ("Login required by admin settings", "根据管理员设置，请先登录后再发起远程")
+        ("Login required by admin settings", "根据管理员设置，请先登录后再发起远程"),
+        ("Local device", "本机")
+        ("Cannot connect to the local device", "不能连接本机设备")
     ].iter().cloned().collect();
 }

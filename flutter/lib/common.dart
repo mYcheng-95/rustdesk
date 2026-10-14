@@ -2549,6 +2549,12 @@ connectMainDesktop(String id,
     bool? isSharedPassword}) async {
   // 所有桌面端连接路径（手动输 ID/地址簿/最近会话/子窗口转发）的汇聚点
   if (!await _ensureLoggedInForConnect()) return;
+  // 本机回环连接会形成无限嵌套画面且无法操作，一律拒绝
+  // （设备卡片层另有「本机」标识与禁连，此处兜底覆盖输入 ID/URI 等入口）
+  if (id == await bind.mainGetMyId()) {
+    showToast(translate('Cannot connect to the local device'));
+    return;
+  }
   if (isFileTransfer) {
     await rustDeskWinManager.newFileTransfer(id,
         password: password,
