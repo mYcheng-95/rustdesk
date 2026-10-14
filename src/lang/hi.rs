@@ -782,7 +782,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("relay-fallback-delay-tip", "पहले से स्थापित रिले कनेक्शन सीधे WebRTC कनेक्शन की कितनी देर प्रतीक्षा करता है, उसके बाद उसके स्थान पर उपयोग किया जाता है। धीमे सीधे कनेक्शन को अधिक समय देने के लिए बढ़ाएँ; जिन नेटवर्क पर सीधा कनेक्शन संभव नहीं है वहाँ जल्दी रिले पर जाने के लिए घटाएँ। डिफ़ॉल्ट 2.5 सेकंड के लिए खाली छोड़ें।"),
         ("To start a voice call, enable \"Audio capture\" on the \"Share screen\" page.", ""),
         ("Login required by admin settings", ""),
-        ("Local device", "")
+        ("Local device", ""),
         ("Cannot connect to the local device", "")
     ].iter().cloned().collect();
 }

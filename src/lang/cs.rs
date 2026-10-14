@@ -782,7 +782,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("relay-fallback-delay-tip", "Jak dlouho již navázané spojení přes přenos čeká na přímé spojení WebRTC, než bude použito místo něj. Zvyšte, aby pomalé přímé spojení mělo více času uspět; snižte, aby se v sítích, kde přímé spojení není možné, dříve přešlo na přenos. Ponechte prázdné pro výchozí hodnotu 2.5 sekundy."),
         ("To start a voice call, enable \"Audio capture\" on the \"Share screen\" page.", ""),
         ("Login required by admin settings", ""),
-        ("Local device", "")
+        ("Local device", ""),
         ("Cannot connect to the local device", "")
     ].iter().cloned().collect();
 }

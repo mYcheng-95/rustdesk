@@ -782,7 +782,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("relay-fallback-delay-tip", "Durée pendant laquelle une connexion relais déjà établie attend la connexion directe WebRTC avant d'être utilisée à sa place. Augmentez-la pour laisser plus de temps à une connexion directe lente ; diminuez-la pour basculer plus tôt vers le relais sur les réseaux où une connexion directe est impossible. Laissez vide pour la valeur par défaut de 2.5 secondes."),
         ("To start a voice call, enable \"Audio capture\" on the \"Share screen\" page.", ""),
         ("Login required by admin settings", ""),
-        ("Local device", "")
+        ("Local device", ""),
         ("Cannot connect to the local device", "")
     ].iter().cloned().collect();
 }

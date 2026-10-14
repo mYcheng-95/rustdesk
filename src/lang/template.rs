@@ -782,7 +782,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("relay-fallback-delay-tip", ""),
         ("To start a voice call, enable \"Audio capture\" on the \"Share screen\" page.", ""),
         ("Login required by admin settings", ""),
-        ("Local device", "")
+        ("Local device", ""),
         ("Cannot connect to the local device", "")
     ].iter().cloned().collect();
 }
