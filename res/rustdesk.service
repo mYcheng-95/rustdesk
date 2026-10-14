@@ -1,5 +1,5 @@
 [Unit]
-Description=RustDesk
+Description=TaDesk
 Requires=network.target
 After=systemd-user-sessions.service
 
