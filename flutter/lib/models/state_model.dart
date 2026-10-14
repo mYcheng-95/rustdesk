@@ -26,6 +26,9 @@ class StateGlobal {
   final isPortrait = false.obs;
 
   final updateUrl = ''.obs;
+  // 自建更新通道：版本检查响应附带的发布平台下载页（download_url），
+  // 供主页更新卡片的 Download 按钮跳转；官方响应无此字段则为空。
+  final updateDownloadUrl = ''.obs;
 
   String _inputSource = '';
 

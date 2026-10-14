@@ -428,14 +428,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
-    if (!bind.isCustomClient() &&
-        updateUrl.isNotEmpty &&
-        !isCardClosed &&
-        bind.mainUriPrefixSync().contains('rustdesk')) {
-      final isToUpdate = (isWindows || isMacOS) && bind.mainIsInstalled();
+    if (updateUrl.isNotEmpty && !isCardClosed) {
+      // 应用内 Update 按钮走的是 GitHub 官方下载链路，仅官方构建可用；
+      // TaDesk（uri 前缀 tadesk://）统一走 Download 跳内部 /upload 分发页，
+      // 下载新 SFX 后双击即完成更新（便携配置不受影响）。
+      final isToUpdate = (isWindows || isMacOS) &&
+          bind.mainIsInstalled() &&
+          bind.mainUriPrefixSync().contains('rustdesk');
       String btnText = isToUpdate ? 'Update' : 'Download';
       GestureTapCallback onPressed = () async {
-        final Uri url = Uri.parse('https://rustdesk.com/download');
+        // 自建更新通道：跳版本检查响应带的发布平台下载页（download_url）；
+        // 官方构建（响应无该字段）保持跳官网下载页的原行为。
+        final dl = stateGlobal.updateDownloadUrl.value;
+        final Uri url =
+            Uri.parse(dl.isNotEmpty ? dl : 'https://rustdesk.com/download');
         await launchUrl(url);
       };
       if (isToUpdate) {

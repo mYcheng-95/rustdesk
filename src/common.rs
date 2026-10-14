@@ -1010,8 +1010,34 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
     }
 }
 
+// 构建期注入的自建版本检查端点（TA_UPDATE_API，见 flutter-build.yml 顶层 env），
+// 作为 option（update-api-url）未配置时的兜底默认。Rust 1.75 的 const 求值
+// 不支持字符串模式匹配，沿用 config::pick_or 的 len 判空写法：
+// CI 未配置该 secret 时环境变量为空字符串，必须与未注入同等对待。
+const CUSTOM_UPDATE_API: Option<&str> = match option_env!("TA_UPDATE_API") {
+    None => None,
+    Some(s) => match s.len() {
+        0 => None,
+        _ => Some(s),
+    },
+};
+
+// 版本检查端点解析：服务器心跳下发与本地手改共用 option 键（update-api-url，
+// 持久化机制见 hbbs_http::sync.rs 的 handle_config_options——下发即写 option，
+// 单机改配置文件同键即时生效），编译期注入 TA_UPDATE_API 兜底。
+fn get_update_api_url() -> String {
+    let opt = Config::get_option(keys::OPTION_UPDATE_API_URL);
+    if !opt.is_empty() {
+        return opt;
+    }
+    CUSTOM_UPDATE_API.unwrap_or_default().to_string()
+}
+
 pub fn check_software_update() {
-    if is_custom_client() {
+    // 品牌构建（custom client）只在配置了自建端点（option 或编译期注入）时
+    // 才检查更新：否则会向官方 api.rustdesk.com 上报设备指纹，并把官方安装包
+    // 当成"新版本"提示用户下载，覆盖品牌版。未配置时保持静默禁用。
+    if is_custom_client() && get_update_api_url().is_empty() {
         return;
     }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
@@ -1021,11 +1047,22 @@ pub fn check_software_update() {
 }
 
 // No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always `https://api.rustdesk.com/version/latest`.
+// Official builds always use `https://api.rustdesk.com/version/latest`;
+// TaDesk builds use update-api-url / injected TA_UPDATE_API (plain HTTP is
+// accepted on the internal network, see the layer-A decision).
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
-    let (request, url) =
+    let (request, default_url) =
         hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
+    // 官方构建保持官方端点；品牌构建用可配置端点（三层解析见 get_update_api_url）。
+    let url = if is_custom_client() {
+        get_update_api_url()
+    } else {
+        default_url
+    };
+    if url.is_empty() {
+        return Ok(());
+    }
     let proxy_conf = Config::get_socks();
     let tls_url = get_url_for_tls(&url, &proxy_conf);
     let tls_type = get_cached_tls_type(tls_url);
@@ -1050,8 +1087,19 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
         }
     };
     let bytes = latest_release_response.bytes().await?;
-    let resp: hbb_common::VersionCheckResponse = serde_json::from_slice(&bytes)?;
-    let response_url = resp.url;
+    // 响应契约：官方端点只有 url（tag 页，末段为版本号）；自建端点（tadesk-api）
+    // 额外返回 download_url（发布平台下载页），缺失时回退旧行为。
+    let v: serde_json::Value = serde_json::from_slice(&bytes)?;
+    let response_url = v
+        .get("url")
+        .and_then(|x| x.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let download_url = v
+        .get("download_url")
+        .and_then(|x| x.as_str())
+        .unwrap_or_default()
+        .to_string();
     let latest_release_version = response_url.rsplit('/').next().unwrap_or_default();
 
     if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
@@ -1060,6 +1108,7 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
             let mut m = HashMap::new();
             m.insert("name", "check_software_update_finish");
             m.insert("url", &response_url);
+            m.insert("download_url", download_url.as_str());
             if let Ok(data) = serde_json::to_string(&m) {
                 let _ = crate::flutter::push_global_event(crate::flutter::APP_TYPE_MAIN, data);
             }

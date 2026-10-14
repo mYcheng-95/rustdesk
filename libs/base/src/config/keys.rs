@@ -75,6 +75,9 @@ pub const OPTION_VERIFICATION_METHOD: &str = "verification-method";
 pub const OPTION_TEMPORARY_PASSWORD_LENGTH: &str = "temporary-password-length";
 pub const OPTION_CUSTOM_RENDEZVOUS_SERVER: &str = "custom-rendezvous-server";
 pub const OPTION_API_SERVER: &str = "api-server";
+// 版本检查端点（TaDesk 自建更新通道）：服务器心跳下发与本地手改共用此键，
+// 优先级 本地/下发 option > 编译期注入 TA_UPDATE_API。
+pub const OPTION_UPDATE_API_URL: &str = "update-api-url";
 pub const OPTION_KEY: &str = "key";
 pub const OPTION_PRESET_ADDRESS_BOOK_NAME: &str = "preset-address-book-name";
 pub const OPTION_PRESET_ADDRESS_BOOK_TAG: &str = "preset-address-book-tag";

@@ -28,6 +28,9 @@ env:
   TA_RENDEZVOUS_SERVER: ${{ secrets.TA_RENDEZVOUS_SERVER }}
   TA_RS_PUB_KEY: ${{ secrets.TA_RS_PUB_KEY }}
   TA_DEFAULT_PASSWORD: ${{ secrets.TA_DEFAULT_PASSWORD }}
+  # 自建更新通道：版本检查端点（编译期兜底默认，运行时可被心跳下发的
+  # update-api-url option 覆盖）。缺失时品牌构建静默禁用更新检查。
+  TA_UPDATE_API: ${{ secrets.TA_UPDATE_API }}
   # API 服务地址预置（src/common.rs get_api_server_ 顶部 option_env! 拦截，
   # 压过用户配置——设备升级后自动指向公司 API，免除逐台手工配置）
   TA_API_SERVER: ${{ secrets.TA_API_SERVER }}
@@ -160,6 +163,19 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      - name: Verify tag matches VERSION
+        # 发版规范（与发布平台契约定稿）：git tag 是平台录入的版本权威来源，
+        # 必须与 VERSION（Cargo version 同源）逐字一致，否则客户端版本比较
+        # 会出现永不触发/循环触发。历史上出现过 tag 1.5.0.9 / 产物 1.5.0 漂移。
+        if: ${{ inputs.upload-tag != '' }}
+        shell: bash
+        run: |
+          TAG="${{ inputs.upload-tag }}"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::git tag '$TAG' 与 VERSION '$VERSION' 不一致（tag 是平台录入的版本权威来源），已中止"
+            exit 1
+          fi
 
       - name: Apply TaDesk branding
         shell: bash
@@ -379,12 +395,20 @@ jobs:
             echo "::error::未配置 TA_API_SERVER secret，产物将需手工配置 API 地址，已中止"
             exit 1
           fi
+          if [ -z "$TA_UPDATE_API" ]; then
+            echo "::error::未配置 TA_UPDATE_API secret，产物将静默禁用更新检查（本期核心能力），已中止"
+            exit 1
+          fi
           if ! grep -q "$TA_RENDEZVOUS_SERVER" ./rustdesk/librustdesk.dll; then
             echo "::error::librustdesk.dll 中未找到注入的服务器地址，注入链路异常"
             exit 1
           fi
           if ! grep -q "$TA_API_SERVER" ./rustdesk/librustdesk.dll; then
             echo "::error::librustdesk.dll 中未找到注入的 API 地址，注入链路异常"
+            exit 1
+          fi
+          if ! grep -q "$TA_UPDATE_API" ./rustdesk/librustdesk.dll; then
+            echo "::error::librustdesk.dll 中未找到注入的更新检查端点，注入链路异常"
             exit 1
           fi
           if ! grep -q "$TA_RS_PUB_KEY" ./rustdesk/librustdesk.dll; then
