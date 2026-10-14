@@ -157,10 +157,30 @@ class _PeerCardState extends State<_PeerCard>
           ),
         );
       },
-      child: gestureDetector(
-          child: Obx(() => peerCardUiType.value == PeerUiType.grid
-              ? _buildPeerCard(context, peer, deco)
-              : _buildPeerTile(context, peer, deco))),
+      child: Stack(children: [
+        gestureDetector(
+            child: Obx(() => peerCardUiType.value == PeerUiType.grid
+                ? _buildPeerCard(context, peer, deco)
+                : _buildPeerTile(context, peer, deco))),
+        // 「本机」徽标在形态分发层包裹：grid 走 _buildPeerCard 不经过
+        // _buildPeerTile 的 Stack，必须在此层才能覆盖全部桌面视图形态
+        if (_isSelf)
+          Positioned(
+            top: 4,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: MyTheme.accent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                translate('Local device'),
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 
@@ -314,24 +334,7 @@ class _PeerCardState extends State<_PeerCard>
                 child: CustomPaint(
                   painter: TagPainter(radius: 3, colors: colors),
                 ),
-              )),
-        // 「本机」徽标：须置于 Obx 主体之后——Stack 后画的在上层，放前面会被卡片背景盖住
-        if (_isSelf)
-          Positioned(
-            top: 4,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: MyTheme.accent,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                translate('Local device'),
-                style: const TextStyle(color: Colors.white, fontSize: 10),
-              ),
-            ),
-          )
+              ))
       ]),
     );
   }
