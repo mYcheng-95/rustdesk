@@ -350,13 +350,10 @@ class _PeerCardState extends State<_PeerCard>
       BuildContext context, Peer peer, Rx<BoxDecoration?> deco) {
     hideUsernameOnCard ??=
         bind.mainGetBuildinOption(key: kHideUsernameOnCard) == 'Y';
-    // 统一显示别名：地址簿/本地别名优先，无别名回退 username@hostname
-    final alias = _displayAlias(peer);
-    final name = alias.isNotEmpty
-        ? alias
-        : hideUsernameOnCard == true
-            ? peer.hostname
-            : '${peer.username}${peer.username.isNotEmpty && peer.hostname.isNotEmpty ? '@' : ''}${peer.hostname}';
+    // 中间区域固定显示 用户名@设备名（系统信息）；别名只负责底部显示行
+    final name = hideUsernameOnCard == true
+        ? peer.hostname
+        : '${peer.username}${peer.username.isNotEmpty && peer.hostname.isNotEmpty ? '@' : ''}${peer.hostname}';
     final child = Card(
       color: Colors.transparent,
       elevation: 0,
@@ -434,20 +431,43 @@ class _PeerCardState extends State<_PeerCard>
                   color: Theme.of(context).colorScheme.background,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                          child: Row(children: [
-                        getOnline(8, peer.online),
-                        Expanded(
-                            child: Text(
-                          // 无别名仅显 ID；有别名显示 名称(ID)
-                          _displayAlias(peer).isEmpty
-                              ? formatID(peer.id)
-                              : '${_displayAlias(peer)} (${formatID(peer.id)})',
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall,
-                        )),
-                      ]).paddingSymmetric(vertical: 8)),
+                          child: Builder(builder: (context) {
+                        // 底部两行：有别名=名称+ID 两行；无别名仅一行 ID
+                        final alias = _displayAlias(peer);
+                        final nameRow = Row(children: [
+                          getOnline(8, peer.online),
+                          Expanded(
+                              child: Text(
+                            alias.isEmpty ? formatID(peer.id) : alias,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          )),
+                        ]).paddingOnly(top: 6);
+                        if (alias.isEmpty) {
+                          return nameRow.paddingOnly(bottom: 6);
+                        }
+                        return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              nameRow,
+                              Text(
+                                formatID(peer.id),
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color
+                                            ?.withOpacity(0.55)),
+                              ).paddingOnly(bottom: 4, left: 18),
+                            ]);
+                      })),
                       checkBoxOrActionMoreLandscape(peer, isTile: false),
                     ],
                   ).paddingSymmetric(horizontal: 12.0),
