@@ -49,6 +49,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
   bool isCardClosed = false;
+  Worker? _updateUrlWorker;
 
   final RxBool _editHover = false.obs;
   final RxBool _block = false.obs;
@@ -708,6 +709,16 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   void initState() {
     super.initState();
+    // 卡片状态跟随每次更新检查刷新：Rust 侧每次检查（含无新版）都推事件，
+    // 仍在新版则此处重置 isCardClosed 使卡片重现（关闭只屏蔽到下一次检查），
+    // 无新版则 updateUrl 被清空、卡片经 Obx 自然隐藏。
+    // 监听 checkSeq 而非 updateUrl：同版本重复检查时 url 值不变，
+    // GetX Rx 对相同值不派发通知，必须用每次必变的序号做信号。
+    _updateUrlWorker = ever(stateGlobal.updateCheckSeq, (_) {
+      if (stateGlobal.updateUrl.value.isNotEmpty && isCardClosed) {
+        setState(() => isCardClosed = false);
+      }
+    });
     _updateTimer = periodic_immediate(const Duration(seconds: 1), () async {
       await gFFI.serverModel.fetchID();
       final error = await bind.mainGetError();
@@ -883,6 +894,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     _uniLinksSubscription?.cancel();
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
+    _updateUrlWorker?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

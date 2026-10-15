@@ -4102,9 +4102,23 @@ void checkUpdate() {
       if (evt['download_url'] is String) {
         stateGlobal.updateDownloadUrl.value = evt['download_url'];
       }
+      // 每次检查完成（含同版本重复检查）都自增：作为卡片重置的必变信号，
+      // 规避 GetX Rx 相同值不通知的问题（见 state_model 的字段注释）。
+      stateGlobal.updateCheckSeq.value++;
     });
     Timer(const Duration(seconds: 1), () async {
       bind.mainGetSoftwareUpdateUrl();
+    });
+    // 便携形态无后台自动更新线程（is_installed 门控不满足），运行期间
+    // 仅上面启动一查；补低频周期重查，长开机机器当天也能收到新版本通知。
+    // 间隔默认 4 小时（上线值），可用 update-check-interval option（分钟）
+    // 覆盖——联调测试时设 1~10 即可，无需改代码。
+    Timer(const Duration(seconds: 2), () async {
+      final s = await bind.mainGetOption(key: 'update-check-interval');
+      final minutes = int.tryParse(s) ?? 240;
+      Timer.periodic(Duration(minutes: minutes), (_) async {
+        bind.mainGetSoftwareUpdateUrl();
+      });
     });
   }
 }

@@ -29,6 +29,10 @@ class StateGlobal {
   // 自建更新通道：版本检查响应附带的发布平台下载页（download_url），
   // 供主页更新卡片的 Download 按钮跳转；官方响应无此字段则为空。
   final updateDownloadUrl = ''.obs;
+  // 更新检查完成序号：每次收到检查完成事件自增。周期重查发现的是同一
+  // 版本时 url 值不变，GetX Rx 对相同值不派发通知，卡片重置逻辑不能
+  // 监听 updateUrl 本身——必须用这个每次必变的序号做信号。
+  final updateCheckSeq = 0.obs;
 
   String _inputSource = '';
 

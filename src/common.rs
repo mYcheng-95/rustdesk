@@ -1129,17 +1129,34 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
     };
     let latest_release_version = response_url.rsplit('/').next().unwrap_or_default();
 
-    if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
-        #[cfg(feature = "flutter")]
-        {
-            let mut m = HashMap::new();
-            m.insert("name", "check_software_update_finish");
-            m.insert("url", &response_url);
-            m.insert("download_url", download_url.as_str());
-            if let Ok(data) = serde_json::to_string(&m) {
-                let _ = crate::flutter::push_global_event(crate::flutter::APP_TYPE_MAIN, data);
-            }
+    // 每次检查（含"无新版本"分支）都推事件：Flutter 侧据此让卡片状态
+    // 跟随检查节奏刷新——仍在新版则重现（重置 isCardClosed），无新版则隐藏。
+    let has_update = get_version_number(&latest_release_version) > get_version_number(crate::VERSION);
+    #[cfg(feature = "flutter")]
+    {
+        let mut m = HashMap::new();
+        m.insert("name", "check_software_update_finish");
+        m.insert(
+            "url",
+            if has_update {
+                response_url.as_str()
+            } else {
+                ""
+            },
+        );
+        m.insert(
+            "download_url",
+            if has_update {
+                download_url.as_str()
+            } else {
+                ""
+            },
+        );
+        if let Ok(data) = serde_json::to_string(&m) {
+            let _ = crate::flutter::push_global_event(crate::flutter::APP_TYPE_MAIN, data);
         }
+    }
+    if has_update {
         *SOFTWARE_UPDATE_URL.lock().unwrap() = response_url;
         *SOFTWARE_UPDATE_DOWNLOAD_URL.lock().unwrap() = download_url;
     } else {
