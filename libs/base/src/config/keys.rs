@@ -78,6 +78,11 @@ pub const OPTION_API_SERVER: &str = "api-server";
 // 版本检查端点（TaDesk 自建更新通道）：服务器心跳下发与本地手改共用此键，
 // 优先级 本地/下发 option > 编译期注入 TA_UPDATE_API。
 pub const OPTION_UPDATE_API_URL: &str = "update-api-url";
+// 更新卡片 Download 按钮的跳转地址（覆盖层）：优先级 本地/下发 option >
+// 编译期注入 TA_UPDATE_DOWNLOAD_URL > 兼容端点响应的 download_url。
+// 背景：平台响应的 download_url 落地页路由与实际 portal 不一致（404），
+// 平台侧不调整，由客户端覆盖修正；平台修正后清空覆盖即恢复响应值。
+pub const OPTION_UPDATE_DOWNLOAD_URL: &str = "update-download-url";
 pub const OPTION_KEY: &str = "key";
 pub const OPTION_PRESET_ADDRESS_BOOK_NAME: &str = "preset-address-book-name";
 pub const OPTION_PRESET_ADDRESS_BOOK_TAG: &str = "preset-address-book-tag";

@@ -93,6 +93,9 @@ pub mod input {
 
 lazy_static::lazy_static! {
     pub static ref SOFTWARE_UPDATE_URL: Arc<Mutex<String>> = Default::default();
+    // Download 按钮跳转地址（三层解析后的最终值，与事件同源；见
+    // do_check_software_update 中 download_url 的解析注释）
+    pub static ref SOFTWARE_UPDATE_DOWNLOAD_URL: Arc<Mutex<String>> = Default::default();
     pub static ref DEVICE_ID: Arc<Mutex<String>> = Default::default();
     pub static ref DEVICE_NAME: Arc<Mutex<String>> = Default::default();
     static ref PUBLIC_IPV6_ADDR: Arc<Mutex<(Option<SocketAddr>, Option<Instant>)>> = Default::default();
@@ -1022,6 +1025,20 @@ const CUSTOM_UPDATE_API: Option<&str> = match option_env!("TA_UPDATE_API") {
     },
 };
 
+// 编译期注入的 Download 按钮跳转地址（TA_UPDATE_DOWNLOAD_URL），
+// 作为兼容端点响应 download_url 的覆盖/兜底。背景：平台响应的落地页
+// 路由与实际 portal 不一致（/software/{slug} 渲染 404，实际应为
+// /portal/software/...），平台侧不调整，由客户端注入修正值；
+// option（update-download-url，心跳下发或本地手改）优先于此。
+// Rust 1.75 const 求值不支持字符串模式匹配，len 判空与上方同款。
+const CUSTOM_UPDATE_DOWNLOAD_URL: Option<&str> = match option_env!("TA_UPDATE_DOWNLOAD_URL") {
+    None => None,
+    Some(s) => match s.len() {
+        0 => None,
+        _ => Some(s),
+    },
+};
+
 // 版本检查端点解析：服务器心跳下发与本地手改共用 option 键（update-api-url，
 // 持久化机制见 hbbs_http::sync.rs 的 handle_config_options——下发即写 option，
 // 单机改配置文件同键即时生效），编译期注入 TA_UPDATE_API 兜底。
@@ -1095,11 +1112,21 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
         .and_then(|x| x.as_str())
         .unwrap_or_default()
         .to_string();
-    let download_url = v
-        .get("download_url")
-        .and_then(|x| x.as_str())
-        .unwrap_or_default()
-        .to_string();
+    let download_url = {
+        // 三层解析：option（心跳下发/本地手改）> 编译期注入 > 平台响应值。
+        // 平台响应的落地页路由异常（404），由前两层覆盖修正（见常量注释）。
+        let opt = Config::get_option(keys::OPTION_UPDATE_DOWNLOAD_URL);
+        if !opt.is_empty() {
+            opt
+        } else if let Some(u) = CUSTOM_UPDATE_DOWNLOAD_URL {
+            u.to_string()
+        } else {
+            v.get("download_url")
+                .and_then(|x| x.as_str())
+                .unwrap_or_default()
+                .to_string()
+        }
+    };
     let latest_release_version = response_url.rsplit('/').next().unwrap_or_default();
 
     if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
@@ -1114,8 +1141,10 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
             }
         }
         *SOFTWARE_UPDATE_URL.lock().unwrap() = response_url;
+        *SOFTWARE_UPDATE_DOWNLOAD_URL.lock().unwrap() = download_url;
     } else {
         *SOFTWARE_UPDATE_URL.lock().unwrap() = "".to_string();
+        *SOFTWARE_UPDATE_DOWNLOAD_URL.lock().unwrap() = "".to_string();
     }
     Ok(())
 }

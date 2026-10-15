@@ -437,9 +437,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           bind.mainUriPrefixSync().contains('rustdesk');
       String btnText = isToUpdate ? 'Update' : 'Download';
       GestureTapCallback onPressed = () async {
-        // 自建更新通道：跳版本检查响应带的发布平台下载页（download_url）；
-        // 官方构建（响应无该字段）保持跳官网下载页的原行为。
-        final dl = stateGlobal.updateDownloadUrl.value;
+        // 自建更新通道：点击时实时读 update-download-url option（心跳 15s
+        // 刷新 = 平台地址热修无需重启客户端），空则用启动时检查缓存的
+        // download_url（其本身已经过 option/编译期/响应三层解析）；
+        // 官方构建（两者皆空）保持跳官网下载页的原行为。
+        final opt = await bind.mainGetOption(key: 'update-download-url');
+        final dl = opt.isNotEmpty ? opt : stateGlobal.updateDownloadUrl.value;
         final Uri url =
             Uri.parse(dl.isNotEmpty ? dl : 'https://rustdesk.com/download');
         await launchUrl(url);

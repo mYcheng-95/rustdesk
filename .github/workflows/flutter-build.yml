@@ -31,6 +31,9 @@ env:
   # 自建更新通道：版本检查端点（编译期兜底默认，运行时可被心跳下发的
   # update-api-url option 覆盖）。缺失时品牌构建静默禁用更新检查。
   TA_UPDATE_API: ${{ secrets.TA_UPDATE_API }}
+  # 自建更新通道：Download 按钮跳转地址（覆盖兼容端点响应的 download_url，
+  # 其落地页路由与实际 portal 不一致，平台侧不调整）。缺失时回退响应值。
+  TA_UPDATE_DOWNLOAD_URL: ${{ secrets.TA_UPDATE_DOWNLOAD_URL }}
   # API 服务地址预置（src/common.rs get_api_server_ 顶部 option_env! 拦截，
   # 压过用户配置——设备升级后自动指向公司 API，免除逐台手工配置）
   TA_API_SERVER: ${{ secrets.TA_API_SERVER }}
@@ -398,6 +401,17 @@ jobs:
           if [ -z "$TA_UPDATE_API" ]; then
             echo "::error::未配置 TA_UPDATE_API secret，产物将静默禁用更新检查（本期核心能力），已中止"
             exit 1
+          fi
+          # TA_UPDATE_DOWNLOAD_URL 是可选覆盖层（平台响应 download_url 的
+          # 修正值，运行时亦可由心跳下发的 update-download-url 覆盖）；
+          # 平台侧路由正常时应保持为空，让客户端透传平台响应值。
+          if [ -n "$TA_UPDATE_DOWNLOAD_URL" ]; then
+            if ! grep -q "$TA_UPDATE_DOWNLOAD_URL" ./rustdesk/librustdesk.dll; then
+              echo "::error::librustdesk.dll 中未找到注入的下载页地址，注入链路异常"
+              exit 1
+            fi
+          else
+            echo "::warning::未配置 TA_UPDATE_DOWNLOAD_URL（可选覆盖层），Download 按钮将使用平台响应的 download_url"
           fi
           if ! grep -q "$TA_RENDEZVOUS_SERVER" ./rustdesk/librustdesk.dll; then
             echo "::error::librustdesk.dll 中未找到注入的服务器地址，注入链路异常"
