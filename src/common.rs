@@ -1080,6 +1080,7 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
     if url.is_empty() {
         return Ok(());
     }
+    log::info!("Checking software update from {}", &url);
     let proxy_conf = Config::get_socks();
     let tls_url = get_url_for_tls(&url, &proxy_conf);
     let tls_type = get_cached_tls_type(tls_url);

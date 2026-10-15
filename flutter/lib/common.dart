@@ -4111,14 +4111,25 @@ void checkUpdate() {
     });
     // 便携形态无后台自动更新线程（is_installed 门控不满足），运行期间
     // 仅上面启动一查；补低频周期重查，长开机机器当天也能收到新版本通知。
-    // 间隔默认 4 小时（上线值），可用 update-check-interval option（分钟）
-    // 覆盖——联调测试时设 1~10 即可，无需改代码。
-    Timer(const Duration(seconds: 2), () async {
-      final s = await bind.mainGetOption(key: 'update-check-interval');
-      final minutes = int.tryParse(s) ?? 240;
-      Timer.periodic(Duration(minutes: minutes), (_) async {
-        bind.mainGetSoftwareUpdateUrl();
-      });
+    //
+    // 实现为 30 秒 tick 的调度器而非一次性 Timer.periodic：
+    // ① 建立 periodic 前的 async FFI 一旦抛异常会静默杀死整个调度
+    //    （联调实测：SFX 包下从未触发周期检查且无任何日志）；
+    // ② 间隔配置（update-check-interval，分钟，默认 240=上线值）每次
+    //    tick 重新读取，改动无需重启进程；FFI 单次失败只跳过本次 tick。
+    var lastCheckAt = DateTime.now().millisecondsSinceEpoch;
+    Timer.periodic(const Duration(seconds: 30), (_) async {
+      try {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final s = await bind.mainGetOption(key: 'update-check-interval');
+        final minutes = (int.tryParse(s ?? '') ?? 240).clamp(1, 1440);
+        if (now - lastCheckAt >= minutes * 60 * 1000) {
+          lastCheckAt = now;
+          await bind.mainGetSoftwareUpdateUrl();
+        }
+      } catch (e) {
+        debugPrint('update check scheduler tick error: $e');
+      }
     });
   }
 }
